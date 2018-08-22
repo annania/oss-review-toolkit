@@ -189,7 +189,7 @@ class Maven(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfigu
             }
 
             return PackageReference(
-                    Identifier(toString(), node.artifact.groupId, node.artifact.artifactId, node.artifact.version),
+                    Identifier("Maven", node.artifact.groupId, node.artifact.artifactId, node.artifact.version),
                     dependencies = sortedSetOf(),
                     errors = listOf(OrtIssue(source = toString(), message = e.collectMessagesAsString()))
             )

@@ -423,7 +423,7 @@ open class NPM(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConf
                         "fine if the module was not installed because it is specific to a different platform."
             }
 
-            val id = Identifier(toString(), "", name, "")
+            val id = Identifier("NPM", "", name, "")
             val issue = OrtIssue(source = toString(), message = "Package '$name' was not installed.")
             return PackageReference(id, errors = listOf(issue))
         } else {

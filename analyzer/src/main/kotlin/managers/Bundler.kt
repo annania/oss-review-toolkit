@@ -135,7 +135,7 @@ class Bundler(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfi
 
         try {
             var gemSpec = getGemspec(gemName, workingDir)
-            val gemId = Identifier(toString(), "", gemSpec.name, gemSpec.version)
+            val gemId = Identifier("RubyGems", "", gemSpec.name, gemSpec.version)
 
             // The project itself can be listed as a dependency if the project is a Gem (i.e. there is a .gemspec file
             // for it, and the Gemfile refers to it). In that case, skip querying Rubygems and adding Package and
