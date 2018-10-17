@@ -47,6 +47,7 @@ import org.apache.maven.execution.MavenExecutionRequest
 import org.apache.maven.execution.MavenExecutionRequestPopulator
 import org.apache.maven.execution.MavenSession
 import org.apache.maven.internal.aether.DefaultRepositorySystemSessionFactory
+import org.apache.maven.model.Scm
 import org.apache.maven.model.building.ModelBuildingRequest
 import org.apache.maven.plugin.LegacySupport
 import org.apache.maven.project.MavenProject
@@ -114,15 +115,51 @@ class MavenSupport(workspaceReader: WorkspaceReader) {
         fun parseLicenses(mavenProject: MavenProject) =
                 mavenProject.licenses.mapNotNull { it.name ?: it.url ?: it.comments }.toSortedSet()
 
+        fun parseScmTag(scm: Scm?): VcsInfo {
+            if (scm == null) return VcsInfo.EMPTY
+
+            val connection = scm.connection ?: ""
+            val tag = scm.tag?.takeIf { it != "HEAD" } ?: ""
+
+            return SCM_REGEX.matcher(connection).let {
+                if (it.matches()) {
+                    val type = it.group("type")
+                    val url = it.group("url")
+
+                    when {
+                        // CVS URLs usually start with ":pserver:" or ":ext:", but as ":" is also the delimiter used by
+                        // the Maven SCM plugin, no double ":" is used in the connection string and we need to fix it up
+                        //  here.
+                        type == "cvs" && !url.startsWith(":") -> {
+                            VcsInfo(type = type, url = ":$url", revision = tag)
+                        }
+
+                        // Maven does not officially support git-repo as an SCM, see
+                        // http://maven.apache.org/scm/scms-overview.html, so come up with a convention to use the URL
+                        // fragment for the path to the manifest inside the repository.
+                        type == "git-repo" -> {
+                            VcsInfo(type = type, url = url.substringBefore('?'), revision = tag, path = url.substringAfter('?'))
+                        }
+
+                        else -> VcsInfo(type = type, url = url, revision = tag)
+                    }
+                } else {
+                    if (connection.isNotEmpty()) {
+                        log.info { "Ignoring Maven SCM connection URL '$connection' of unexpected format." }
+                    }
+
+                    VcsInfo.EMPTY
+                }
+            }
+        }
+
         fun parseVcsInfo(mavenProject: MavenProject): VcsInfo {
             // When asking Maven for the SCM URL of a POM that does not itself define an SCM URL, Maven returns the SCM
             // URL of the parent POM (if any) and appends the child POM's artifactId to it. This behavior is
             // fundamentally broken because it invalidates the URL for many SCMs that cannot clone / checkout a specific
-            // path from a repository. Also, the assumption that the source code for a child artifact is stored in a
-            // top-level directory named like the artifactId inside the parent artifact's repository is often not
-            // correct.
+            // path from a repository.
             // To fix this, determine the SCM URL of the root parent (if there are parents) and use that as the child's
-            // SCM URL.
+            // SCM URL, and use the difference between these URLs as the VCS path.
             var scm = mavenProject.scm
             var parent = mavenProject.parent
 
@@ -138,39 +175,14 @@ class MavenSupport(workspaceReader: WorkspaceReader) {
                 parent = parent.parent
             }
 
-            if (scm == null) return VcsInfo.EMPTY
+            val projectVcsInfo = parseScmTag(mavenProject.scm)
+            val relevantVcsInfo = parseScmTag(scm)
 
-            val connection = scm.connection ?: ""
-            val tag = scm.tag?.takeIf { it != "HEAD" } ?: ""
-
-            val (type, url, path) = SCM_REGEX.matcher(connection).let {
-                if (it.matches()) {
-                    val type = it.group("type")
-                    val url = it.group("url")
-
-                    when {
-                        // CVS URLs usually start with ":pserver:" or ":ext:", but as ":" is also the delimiter used by
-                        // the Maven SCM plugin, no double ":" is used in the connection string and we need to fix it up
-                        //  here.
-                        type == "cvs" && !url.startsWith(":") -> listOf(type, ":$url", "")
-
-                        // Maven does not officially support git-repo as an SCM, see
-                        // http://maven.apache.org/scm/scms-overview.html, so come up with a convention to use the URL
-                        // fragment for the path to the manifest inside the repository.
-                        type == "git-repo" -> listOf(type, url.substringBefore('?'), url.substringAfter('?'))
-
-                        else -> listOf(type, url, "")
-                    }
-                } else {
-                    if (connection.isNotEmpty()) {
-                        log.info { "Ignoring Maven SCM connection URL '$connection' of unexpected format." }
-                    }
-
-                    listOf("", "", "")
-                }
+            return if (relevantVcsInfo.url != projectVcsInfo.url && relevantVcsInfo.path.isEmpty()) {
+                relevantVcsInfo.copy(path = projectVcsInfo.url.removePrefix("${relevantVcsInfo.url}/"))
+            } else {
+                relevantVcsInfo
             }
-
-            return VcsInfo(type = type, url = url, revision = tag, path = path)
         }
     }
 
