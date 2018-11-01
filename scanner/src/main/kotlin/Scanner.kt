@@ -55,9 +55,9 @@ abstract class Scanner(protected val config: ScannerConfiguration) {
     }
 
     /**
-     * Return the Java class name as a simple way to refer to the [Scanner].
+     * The printable unique name of this [Scanner].
      */
-    override fun toString(): String = javaClass.simpleName
+    val name: String = javaClass.simpleName
 
     /**
      * Scan the list of [packages] using this [Scanner] and store the scan results in [outputDirectory]. If

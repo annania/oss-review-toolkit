@@ -89,7 +89,7 @@ class BoyterLc(config: ScannerConfiguration) : LocalScanner(config) {
 
         val url = "https://github.com/boyter/lc/releases/download/v$scannerVersion/lc-$scannerVersion-$platform.zip"
 
-        log.info { "Downloading $this from '$url'... " }
+        log.info { "Downloading $name from $url... " }
 
         val request = Request.Builder().get().url(url).build()
 
@@ -97,11 +97,11 @@ class BoyterLc(config: ScannerConfiguration) : LocalScanner(config) {
             val body = response.body()
 
             if (response.code() != HttpURLConnection.HTTP_OK || body == null) {
-                throw IOException("Failed to download $this from $url.")
+                throw IOException("Failed to download $name from $url.")
             }
 
             if (response.cacheResponse() != null) {
-                log.info { "Retrieved $this from local cache." }
+                log.info { "Retrieved $name from local cache." }
             }
 
             val scannerArchive = createTempFile(suffix = url.substringAfterLast("/"))

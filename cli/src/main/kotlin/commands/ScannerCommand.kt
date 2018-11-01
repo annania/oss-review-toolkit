@@ -125,7 +125,7 @@ object ScannerCommand : CommandWithHelp() {
 
         val scanner = scannerFactory.create(config)
 
-        println("Using scanner '$scanner'.")
+        println("Using scanner '${scanner.name}'.")
 
         val ortResult = ortFile?.let {
             scanner.scanDependenciesFile(it, outputDir, downloadDir, scopesToScan.toSet())

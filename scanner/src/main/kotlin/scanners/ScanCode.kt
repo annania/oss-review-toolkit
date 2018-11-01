@@ -146,7 +146,7 @@ class ScanCode(config: ScannerConfiguration) : LocalScanner(config) {
         // locally. For details see https://github.com/square/okhttp/issues/4355#issuecomment-435679393.
         val url = "https://github.com/nexB/scancode-toolkit/archive/$archive"
 
-        log.info { "Downloading $this from '$url'... " }
+        log.info { "Downloading $name from $url... " }
 
         val request = Request.Builder().get().url(url).build()
 
@@ -154,11 +154,11 @@ class ScanCode(config: ScannerConfiguration) : LocalScanner(config) {
             val body = response.body()
 
             if (response.code() != HttpURLConnection.HTTP_OK || body == null) {
-                throw IOException("Failed to download $this from $url.")
+                throw IOException("Failed to download $name from $url.")
             }
 
             if (response.cacheResponse() != null) {
-                log.info { "Retrieved $this from local cache." }
+                log.info { "Retrieved $name from local cache." }
             }
 
             val scannerArchive = createTempFile(suffix = url.substringAfterLast("/"))

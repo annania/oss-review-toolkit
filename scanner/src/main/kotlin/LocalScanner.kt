@@ -78,7 +78,7 @@ abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), Com
             getVersion(it) == scannerVersion
         } ?: run {
             if (scannerExe.isNotEmpty()) {
-                log.info { "Bootstrapping scanner '$this' as required version $scannerVersion was not found in PATH." }
+                log.info { "Bootstrapping scanner '$name' as required version $scannerVersion was not found in PATH." }
 
                 bootstrap().also {
                     val actualScannerVersion = getVersion(it)
@@ -88,7 +88,7 @@ abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), Com
                     }
                 }
             } else {
-                log.info { "Skipping to bootstrap scanner '$this' as it has no executable." }
+                log.info { "Skipping to bootstrap scanner '$name' as it has no executable." }
 
                 File("")
             }
@@ -125,14 +125,9 @@ abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), Com
     abstract fun getConfiguration(): String
 
     /**
-     * Return the name of this [LocalScanner].
-     */
-    fun getName() = toString().toLowerCase()
-
-    /**
      * Return the [ScannerDetails] of this [LocalScanner].
      */
-    fun getDetails() = ScannerDetails(getName(), getVersion(), getConfiguration())
+    fun getDetails() = ScannerDetails(name, getVersion(), getConfiguration())
 
     override fun scan(packages: List<Package>, outputDirectory: File, downloadDirectory: File?)
             : Map<Package, List<ScanResult>> {
@@ -196,7 +191,7 @@ abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), Com
 
             val now = Instant.now()
             val summary = ScanSummary(now, now, 0, sortedSetOf(),
-                    listOf(Error(source = toString(), message = e.collectMessagesAsString())))
+                    listOf(Error(source = name, message = e.collectMessagesAsString())))
             ScanResult(Provenance(now), getDetails(), summary)
         }
 
@@ -268,7 +263,7 @@ abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), Com
         }
 
         log.info {
-            "Running $this version ${scannerDetails.version} on directory " +
+            "Running ${scannerDetails.name} version ${scannerDetails.version} on directory " +
                     "'${downloadResult.downloadDirectory.absolutePath}'."
         }
 
@@ -298,10 +293,10 @@ abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), Com
         val resultsFile = File(scanResultsDirectory,
                 "${path.nameWithoutExtension}_${scannerDetails.name}.$resultFileExt")
 
-        log.info { "Running $this version ${scannerDetails.version} on path '${path.absolutePath}'." }
+        log.info { "Running ${scannerDetails.name} version ${scannerDetails.version} on path '${path.absolutePath}'." }
 
         return scanPath(scannerDetails, path, Provenance(downloadTime = Instant.now()), resultsFile).also {
-            log.info { "Stored $this results in '${resultsFile.absolutePath}'." }
+            log.info { "Stored ${scannerDetails.name} results in '${resultsFile.absolutePath}'." }
         }
     }
 
