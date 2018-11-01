@@ -29,17 +29,20 @@ interface ScannerFactory {
      * Create a [Scanner] using the specified [config].
      */
     fun create(config: ScannerConfiguration): Scanner
+
+    val name2: String
 }
 
 /**
  * A generic factory class for a [Scanner].
  */
-abstract class AbstractScannerFactory<out T : Scanner> : ScannerFactory {
+abstract class AbstractScannerFactory<T : Scanner> : ScannerFactory {
     abstract override fun create(config: ScannerConfiguration): T
 
+    override val name2 = getName<T::class.java>()
+
     /**
-     * Return the Java class name as a simple way to refer to the [AbstractScannerFactory]. As factories are supposed to
-     * be implemented as inner classes we need to manually strip unwanted parts of the fully qualified name.
+     * Return the simple name of the class the factory is going to create as an easy way to refer to it.
      */
-    override fun toString() = javaClass.name.substringBefore('$').substringAfterLast('.')
+    inline fun <reified R : T> getName(): String = R::class.simpleName!!
 }
