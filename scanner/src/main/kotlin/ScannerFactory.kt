@@ -29,8 +29,6 @@ interface ScannerFactory {
      * Create a [Scanner] using the specified [config].
      */
     fun create(config: ScannerConfiguration): Scanner
-
-    val name2: String
 }
 
 /**
@@ -38,8 +36,6 @@ interface ScannerFactory {
  */
 abstract class AbstractScannerFactory<T : Scanner> : ScannerFactory {
     abstract override fun create(config: ScannerConfiguration): T
-
-    override val name2 = getName<T::class.java>()
 
     /**
      * Return the simple name of the class the factory is going to create as an easy way to refer to it.

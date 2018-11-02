@@ -29,6 +29,7 @@ import com.here.ort.CommandWithHelp
 import com.here.ort.model.OutputFormat
 import com.here.ort.model.config.ScannerConfiguration
 import com.here.ort.model.readValue
+import com.here.ort.scanner.AbstractScannerFactory
 import com.here.ort.scanner.LocalScanner
 import com.here.ort.scanner.ScanResultsCache
 import com.here.ort.scanner.Scanner
@@ -44,7 +45,7 @@ object ScannerCommand : CommandWithHelp() {
     private class ScannerConverter : IStringConverter<ScannerFactory> {
         override fun convert(scannerName: String): ScannerFactory {
             // TODO: Consider allowing to enable multiple scanners (and potentially running them in parallel).
-            return Scanner.ALL.find { it .getName().equals(scannerName, true) }
+            return Scanner.ALL.find { (it as AbstractScannerFactory<*>).getName().equals(scannerName, true) }
                     ?: throw ParameterException("Scanner '$scannerName' is not one of ${Scanner.ALL}.")
         }
     }
