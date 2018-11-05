@@ -34,37 +34,24 @@ import com.here.ort.model.jsonMapper
 import com.here.ort.scanner.LocalScanner
 import com.here.ort.scanner.ScanException
 import com.here.ort.scanner.AbstractScannerFactory
-import com.here.ort.utils.CommandLineTool
+import com.here.ort.utils.CommandLineTool2
 import com.here.ort.utils.OS
 import com.here.ort.utils.ProcessCapture
 import com.here.ort.utils.getPathFromEnvironment
 import com.here.ort.utils.log
 
+import com.vdurmont.semver4j.Semver
+
 import java.io.File
 import java.io.IOException
 import java.time.Instant
 
-class Licensee(config: ScannerConfiguration) : LocalScanner(config) {
-    class Factory : AbstractScannerFactory<Licensee>() {
-        override fun create(config: ScannerConfiguration) = Licensee(config)
-    }
+class LicenseeCommand : CommandLineTool2("Licensee") {
+    override val executable = if (OS.isWindows) "licensee.bat" else "licensee"
+    override val versionArguments = "version"
+    override val preferredVersion = Semver("9.10.1")
 
-    override val scannerVersion = "9.10.1"
-    override val resultFileExt = "json"
-
-    val CONFIGURATION_OPTIONS = listOf("--json")
-
-    override fun command(workingDir: File?) = if (OS.isWindows) "licensee.bat" else "licensee"
-
-    override fun getVersion(dir: File): String {
-        // Create a temporary tool to get its version from the installation in a specific directory.
-        val cmd = command()
-        val tool = object : CommandLineTool {
-            override fun command(workingDir: File?) = dir.resolve(cmd).absolutePath
-        }
-
-        return tool.getVersion("version")
-    }
+    override val canBootstrap = true
 
     override fun bootstrap(): File {
         val gem = if (OS.isWindows) "gem.cmd" else "gem"
@@ -73,12 +60,15 @@ class Licensee(config: ScannerConfiguration) : LocalScanner(config) {
         // https://github.com/travis-ci/travis-ci/issues/9412.
         // TODO: Use toBoolean() here once https://github.com/JetBrains/kotlin/pull/1644 is merged.
         val isTravisCi = listOf("TRAVIS", "CI").all { java.lang.Boolean.parseBoolean(System.getenv(it)) }
+
+        val version = preferredVersion.originalValue
+
         return if (isTravisCi) {
-            ProcessCapture(gem, "install", "licensee", "-v", scannerVersion).requireSuccess()
-            getPathFromEnvironment(command())?.parentFile
+            ProcessCapture(gem, "install", "licensee", "-v", version).requireSuccess()
+            getPathFromEnvironment(executable)?.parentFile
                     ?: throw IOException("Install directory for licensee not found.")
         } else {
-            ProcessCapture(gem, "install", "--user-install", "licensee", "-v", scannerVersion).requireSuccess()
+            ProcessCapture(gem, "install", "--user-install", "licensee", "-v", version).requireSuccess()
 
             val ruby = ProcessCapture("ruby", "-r", "rubygems", "-e", "puts Gem.user_dir").requireSuccess()
             val userDir = ruby.stdout.trimEnd()
@@ -86,8 +76,22 @@ class Licensee(config: ScannerConfiguration) : LocalScanner(config) {
             File(userDir, "bin")
         }
     }
+}
 
-    override fun getConfiguration() = CONFIGURATION_OPTIONS.joinToString(" ")
+class Licensee(config: ScannerConfiguration) : LocalScanner(config) {
+    class Factory : AbstractScannerFactory<Licensee>() {
+        override fun create(config: ScannerConfiguration) = Licensee(config)
+    }
+
+    val CONFIGURATION_OPTIONS = listOf("--json")
+
+    private val scanner = LicenseeCommand()
+
+    override val name = scanner.name
+    override val version = scanner.getVersion().originalValue!!
+    override val configuration = CONFIGURATION_OPTIONS.joinToString(" ")
+
+    override val resultFileExt = "json"
 
     override fun scanPath(scannerDetails: ScannerDetails, path: File, provenance: Provenance, resultsFile: File)
             : ScanResult {
@@ -101,13 +105,12 @@ class Licensee(config: ScannerConfiguration) : LocalScanner(config) {
 
         val startTime = Instant.now()
 
-        val process = ProcessCapture(
+        val process = scanner.run(
                 parentPath,
-                scannerPath.absolutePath,
                 "detect",
                 *CONFIGURATION_OPTIONS.toTypedArray(),
                 relativePath
-        )
+        ).requireSuccess()
 
         val endTime = Instant.now()
 

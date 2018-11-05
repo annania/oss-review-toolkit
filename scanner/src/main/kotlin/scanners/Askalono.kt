@@ -32,14 +32,15 @@ import com.here.ort.model.ScannerDetails
 import com.here.ort.model.config.ScannerConfiguration
 import com.here.ort.model.yamlMapper
 import com.here.ort.scanner.LocalScanner
-import com.here.ort.scanner.ScanException
 import com.here.ort.scanner.AbstractScannerFactory
 import com.here.ort.scanner.HTTP_CACHE_PATH
-import com.here.ort.utils.CommandLineTool
+import com.here.ort.scanner.ScanException
+import com.here.ort.utils.CommandLineTool2
 import com.here.ort.utils.OkHttpClientHelper
 import com.here.ort.utils.OS
-import com.here.ort.utils.ProcessCapture
 import com.here.ort.utils.log
+
+import com.vdurmont.semver4j.Semver
 
 import java.io.File
 import java.io.IOException
@@ -50,43 +51,31 @@ import okhttp3.Request
 
 import okio.Okio
 
-class Askalono(config: ScannerConfiguration) : LocalScanner(config) {
-    class Factory : AbstractScannerFactory<Askalono>() {
-        override fun create(config: ScannerConfiguration) = Askalono(config)
-    }
+class AskalonoCommand : CommandLineTool2("Askalono") {
+    override val executable: String
+        get() {
+            val extension = when {
+                OS.isLinux -> "linux"
+                OS.isMac -> "osx"
+                OS.isWindows -> "exe"
+                else -> throw IllegalArgumentException("Unsupported operating system.")
+            }
 
-    override val scannerVersion = "0.3.0"
-    override val resultFileExt = "txt"
-
-    override fun command(workingDir: File?): String {
-        val extension = when {
-            OS.isLinux -> "linux"
-            OS.isMac -> "osx"
-            OS.isWindows -> "exe"
-            else -> throw IllegalArgumentException("Unsupported operating system.")
+            return "askalono.$extension"
         }
 
-        return "askalono.$extension"
-    }
-
-    override fun getVersion(dir: File): String {
-        // Create a temporary tool to get its version from the installation in a specific directory.
-        val cmd = command()
-        val tool = object : CommandLineTool {
-            override fun command(workingDir: File?) = dir.resolve(cmd).absolutePath
-        }
-
-        return tool.getVersion(transform = {
+    override fun transformVersion(output: String) =
             // "askalono --version" returns a string like "askalono 0.2.0-beta.1", so simply remove the prefix.
-            it.substringAfter("askalono ")
-        })
-    }
+            output.substringAfter("askalono ")
+
+    override val preferredVersion = Semver("0.3.0")
+
+    override val canBootstrap = true
 
     override fun bootstrap(): File {
-        val scannerExe = command()
-        val url = "https://github.com/amzn/askalono/releases/download/$scannerVersion/$scannerExe"
+        val url = "https://github.com/amzn/askalono/releases/download/${preferredVersion.originalValue}/$executable"
 
-        log.info { "Downloading $this from '$url'... " }
+        log.info { "Downloading $name from $url... " }
 
         val request = Request.Builder().get().url(url).build()
 
@@ -94,17 +83,17 @@ class Askalono(config: ScannerConfiguration) : LocalScanner(config) {
             val body = response.body()
 
             if (response.code() != HttpURLConnection.HTTP_OK || body == null) {
-                throw IOException("Failed to download $this from $url.")
+                throw IOException("Failed to download $name from $url.")
             }
 
             if (response.cacheResponse() != null) {
-                log.info { "Retrieved $this from local cache." }
+                log.info { "Retrieved $name from local cache." }
             }
 
             val scannerDir = createTempDir()
             scannerDir.deleteOnExit()
 
-            val scannerFile = File(scannerDir, scannerExe)
+            val scannerFile = File(scannerDir, executable)
             Okio.buffer(Okio.sink(scannerFile)).use { it.writeAll(body.source()) }
 
             if (!OS.isWindows) {
@@ -115,18 +104,25 @@ class Askalono(config: ScannerConfiguration) : LocalScanner(config) {
             scannerDir
         }
     }
+}
 
-    override fun getConfiguration() = ""
+class Askalono(config: ScannerConfiguration) : LocalScanner(config) {
+    class Factory : AbstractScannerFactory<Askalono>() {
+        override fun create(config: ScannerConfiguration) = Askalono(config)
+    }
+
+    private val scanner = AskalonoCommand()
+
+    override val name = scanner.name
+    override val version = scanner.getVersion().originalValue!!
+    override val configuration = ""
+
+    override val resultFileExt = "txt"
 
     override fun scanPath(scannerDetails: ScannerDetails, path: File, provenance: Provenance, resultsFile: File)
             : ScanResult {
         val startTime = Instant.now()
-
-        val process = ProcessCapture(
-                scannerPath.absolutePath,
-                "crawl", path.absolutePath
-        )
-
+        val process = scanner.run("crawl", path.absolutePath).requireSuccess()
         val endTime = Instant.now()
 
         if (process.stderr.isNotBlank()) {

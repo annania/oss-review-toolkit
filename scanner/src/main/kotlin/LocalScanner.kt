@@ -43,69 +43,40 @@ import com.here.ort.model.ScannerRun
 import com.here.ort.model.config.RepositoryConfiguration
 import com.here.ort.model.config.ScannerConfiguration
 import com.here.ort.model.mapper
-import com.here.ort.utils.CommandLineTool
 import com.here.ort.utils.OS
 import com.here.ort.utils.collectMessagesAsString
 import com.here.ort.utils.fileSystemEncode
-import com.here.ort.utils.getPathFromEnvironment
 import com.here.ort.utils.log
 import com.here.ort.utils.safeMkdirs
 import com.here.ort.utils.showStackTrace
 
-import com.vdurmont.semver4j.Requirement
-
 import java.io.File
-import java.io.IOException
 import java.time.Instant
 
 /**
  * Implementation of [Scanner] for scanners that operate locally. Packages passed to [scan] are processed in serial
  * order. Scan results can be cached in a [ScanResultsCache].
  */
-abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), CommandLineTool {
+abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config) {
     /**
-     * A property containing the file name extension of the scanner's native output format, without the dot.
+     * The name of the scanner.
      */
-    protected abstract val resultFileExt: String
-
-    /**
-     * The directory the scanner was bootstrapped to, if so.
-     */
-    protected val scannerDir by lazy {
-        val scannerExe = command()
-
-        getPathFromEnvironment(scannerExe)?.parentFile?.takeIf {
-            getVersion(it) == scannerVersion
-        } ?: run {
-            if (scannerExe.isNotEmpty()) {
-                log.info { "Bootstrapping scanner '$this' as required version $scannerVersion was not found in PATH." }
-
-                bootstrap().also {
-                    val actualScannerVersion = getVersion(it)
-                    if (actualScannerVersion != scannerVersion) {
-                        throw IOException("Bootstrapped scanner version $actualScannerVersion " +
-                                "does not match expected version $scannerVersion.")
-                    }
-                }
-            } else {
-                log.info { "Skipping to bootstrap scanner '$this' as it has no executable." }
-
-                File("")
-            }
-        }
-    }
+    abstract val name: String
 
     /**
-     * The required version of the scanner. This is also the version that would get bootstrapped.
+     * The actual version of the scanner.
      */
-    protected abstract val scannerVersion: String
+    abstract val version: String
+
+    /**
+     * The scanner's configuration.
+     */
+    abstract val configuration: String
 
     /**
      * The full path to the scanner executable.
      */
     protected val scannerPath by lazy { File(scannerDir, command()) }
-
-    override fun getVersionRequirement(): Requirement = Requirement.buildLoose(scannerVersion)
 
     /**
      * Return the actual version of the scanner, or an empty string in case of failure.
@@ -136,13 +107,11 @@ abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), Com
 
     override fun scan(packages: List<Package>, outputDirectory: File, downloadDirectory: File?)
             : Map<Package, List<ScanResult>> {
-        val scannerDetails = getDetails()
-
         return packages.withIndex().associate { (index, pkg) ->
             val result = try {
                 log.info { "Starting scan of '${pkg.id}' (${index + 1}/${packages.size})." }
 
-                scanPackage(scannerDetails, pkg, outputDirectory, downloadDirectory).map {
+                scanPackage(details, pkg, outputDirectory, downloadDirectory).map {
                     // Remove the now unneeded reference to rawResult here to allow garbage collection to clean it up.
                     it.copy(rawResult = null)
                 }
@@ -154,7 +123,7 @@ abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), Com
                 val now = Instant.now()
                 listOf(ScanResult(
                         provenance = Provenance(now),
-                        scanner = scannerDetails,
+                        scanner = details,
                         summary = ScanSummary(
                                 startTime = now,
                                 endTime = now,
@@ -296,14 +265,13 @@ abstract class LocalScanner(config: ScannerConfiguration) : Scanner(config), Com
      * @throws ScanException In case the path could not be scanned.
      */
     fun scanPath(path: File, outputDirectory: File): ScanResult {
-        val scannerDetails = getDetails()
         val scanResultsDirectory = File(outputDirectory, "scanResults").apply { safeMkdirs() }
         val resultsFile = File(scanResultsDirectory,
-                "${path.nameWithoutExtension}_${scannerDetails.name}.$resultFileExt")
+                "${path.nameWithoutExtension}_$name.$resultFileExt")
 
-        log.info { "Running $this version ${scannerDetails.version} on path '${path.absolutePath}'." }
+        log.info { "Running $this version $version on path '${path.absolutePath}'." }
 
-        return scanPath(scannerDetails, path, Provenance(downloadTime = Instant.now()), resultsFile).also {
+        return scanPath(details, path, Provenance(downloadTime = Instant.now()), resultsFile).also {
             log.info { "Stored $this results in '${resultsFile.absolutePath}'." }
         }
     }

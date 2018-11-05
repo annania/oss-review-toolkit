@@ -40,16 +40,10 @@ import com.here.ort.model.VcsInfo
 import com.here.ort.model.config.AnalyzerConfiguration
 import com.here.ort.model.config.RepositoryConfiguration
 import com.here.ort.model.jsonMapper
-import com.here.ort.utils.CommandLineTool
-import com.here.ort.utils.OS
-import com.here.ort.utils.ProcessCapture
-import com.here.ort.utils.collectMessagesAsString
-import com.here.ort.utils.log
-import com.here.ort.utils.showStackTrace
-import com.here.ort.utils.stashDirectories
-import com.here.ort.utils.textValueOrEmpty
+import com.here.ort.utils.*
 
 import com.vdurmont.semver4j.Requirement
+import com.vdurmont.semver4j.Semver
 
 import java.io.File
 import java.io.IOException
@@ -62,7 +56,7 @@ const val COMPOSER_LOCK_FILE = "composer.lock"
  * The Composer package manager for PHP, see https://getcomposer.org/.
  */
 class PhpComposer(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfiguration) :
-        PackageManager(analyzerConfig, repoConfig), CommandLineTool {
+        PackageManager(analyzerConfig, repoConfig) {
     class Factory : AbstractPackageManagerFactory<PhpComposer>() {
         override val globsForDefinitionFiles = listOf("composer.json")
 
@@ -70,21 +64,30 @@ class PhpComposer(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryC
                 PhpComposer(analyzerConfig, repoConfig)
     }
 
-    override fun command(workingDir: File?) =
-            if (workingDir?.resolve(COMPOSER_PHAR_BINARY)?.isFile == true) {
-                "php $COMPOSER_PHAR_BINARY"
+    private val composer = object : CommandLineTool2("Composer") {
+        override val preferredVersion = ANY_VERSION
+        override val requiredVersion = Requirement.buildIvy("[1.5,)")
+
+        override val executable = if (OS.isWindows) "composer.bat" else "composer"
+
+        override val versionArguments = "--no-ansi --version"
+
+        override fun transformVersion(output: String) =
+                output.split(" ").dropLast(2).last().removeSurrounding("(", ")")
+    }
+
+    private val composerPhar = object : CommandLineTool2("ComposerPhar") {
+        override val preferredVersion = ANY_VERSION
+        override val executable = "php"
+        override val mandatoryArguments = listOf(COMPOSER_PHAR_BINARY)
+    }
+
+    private fun manager(workingDir: File) =
+            if (workingDir.resolve(COMPOSER_PHAR_BINARY).isFile) {
+                composerPhar
             } else {
-                if (OS.isWindows) {
-                    "composer.bat"
-                } else {
-                    "composer"
-                }
+                composer
             }
-
-    override fun run(workingDir: File?, vararg args: String) =
-            ProcessCapture(workingDir, *command(workingDir).split(" ").toTypedArray(), *args).requireSuccess()
-
-    override fun getVersionRequirement(): Requirement = Requirement.buildIvy("[1.5,)")
 
     override fun prepareResolution(definitionFiles: List<File>) {
         // If all of the directories we are analyzing contain a composer.phar, no global installation of Composer is
@@ -97,11 +100,7 @@ class PhpComposer(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryC
         // fixed versions to be sure to get consistent results. The version string can be something like:
         // Composer version 1.5.1 2017-08-09 16:07:22
         // Composer version @package_branch_alias_version@ (1.0.0-beta2) 2016-03-27 16:00:34
-        checkVersion(
-                "--no-ansi --version",
-                ignoreActualVersion = analyzerConfig.ignoreToolVersions,
-                transform = { it.split(" ").dropLast(2).last().removeSurrounding("(", ")") }
-        )
+        composer.checkVersion(ignoreActualVersion = analyzerConfig.ignoreToolVersions)
     }
 
     override fun resolveDependencies(definitionFile: File): ProjectAnalyzerResult? {

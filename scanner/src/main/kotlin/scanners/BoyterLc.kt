@@ -32,15 +32,16 @@ import com.here.ort.model.ScannerDetails
 import com.here.ort.model.config.ScannerConfiguration
 import com.here.ort.model.jsonMapper
 import com.here.ort.scanner.LocalScanner
-import com.here.ort.scanner.ScanException
 import com.here.ort.scanner.AbstractScannerFactory
 import com.here.ort.scanner.HTTP_CACHE_PATH
-import com.here.ort.utils.CommandLineTool
+import com.here.ort.scanner.ScanException
+import com.here.ort.utils.CommandLineTool2
 import com.here.ort.utils.OkHttpClientHelper
 import com.here.ort.utils.OS
-import com.here.ort.utils.ProcessCapture
 import com.here.ort.utils.log
 import com.here.ort.utils.unpack
+
+import com.vdurmont.semver4j.Semver
 
 import java.io.File
 import java.io.IOException
@@ -51,33 +52,16 @@ import okhttp3.Request
 
 import okio.Okio
 
-class BoyterLc(config: ScannerConfiguration) : LocalScanner(config) {
-    class Factory : AbstractScannerFactory<BoyterLc>() {
-        override fun create(config: ScannerConfiguration) = BoyterLc(config)
-    }
+class BoyterLcCommand : CommandLineTool2("BoyterLc") {
+    override val executable = if (OS.isWindows) "lc.exe" else "lc"
 
-    override val scannerVersion = "1.3.1"
-    override val resultFileExt = "json"
-
-    val CONFIGURATION_OPTIONS = listOf(
-            "--confidence", "0.95", // Cut-off value to only get most relevant matches.
-            "--format", "json"
-    )
-
-    override fun command(workingDir: File?) = if (OS.isWindows) "lc.exe" else "lc"
-
-    override fun getVersion(dir: File): String {
-        // Create a temporary tool to get its version from the installation in a specific directory.
-        val cmd = command()
-        val tool = object : CommandLineTool {
-            override fun command(workingDir: File?) = dir.resolve(cmd).absolutePath
-        }
-
-        return tool.getVersion(transform = {
+    override fun transformVersion(output: String) =
             // "lc --version" returns a string like "licensechecker version 1.1.1", so simply remove the prefix.
-            it.substringAfter("licensechecker version ")
-        })
-    }
+            output.substringAfter("licensechecker version ")
+
+    override val preferredVersion = Semver("1.3.1")
+
+    override val canBootstrap = true
 
     override fun bootstrap(): File {
         val platform = when {
@@ -87,9 +71,10 @@ class BoyterLc(config: ScannerConfiguration) : LocalScanner(config) {
             else -> throw IllegalArgumentException("Unsupported operating system.")
         }
 
-        val url = "https://github.com/boyter/lc/releases/download/v$scannerVersion/lc-$scannerVersion-$platform.zip"
+        val version = preferredVersion.originalValue
+        val url = "https://github.com/boyter/lc/releases/download/v$version/lc-$version-$platform.zip"
 
-        log.info { "Downloading $this from '$url'... " }
+        log.info { "Downloading $name from $url... " }
 
         val request = Request.Builder().get().url(url).build()
 
@@ -97,11 +82,11 @@ class BoyterLc(config: ScannerConfiguration) : LocalScanner(config) {
             val body = response.body()
 
             if (response.code() != HttpURLConnection.HTTP_OK || body == null) {
-                throw IOException("Failed to download $this from $url.")
+                throw IOException("Failed to download $name from $url.")
             }
 
             if (response.cacheResponse() != null) {
-                log.info { "Retrieved $this from local cache." }
+                log.info { "Retrieved $name from local cache." }
             }
 
             val scannerArchive = createTempFile(suffix = url.substringAfterLast("/"))
@@ -115,25 +100,41 @@ class BoyterLc(config: ScannerConfiguration) : LocalScanner(config) {
 
             if (!OS.isWindows) {
                 // The Linux version is distributed as a ZIP, but without having the Unix executable mode bits stored.
-                File(unpackDir, command()).setExecutable(true)
+                File(unpackDir, executable).setExecutable(true)
             }
 
             unpackDir
         }
     }
+}
 
-    override fun getConfiguration() = CONFIGURATION_OPTIONS.joinToString(" ")
+class BoyterLc(config: ScannerConfiguration) : LocalScanner(config) {
+    class Factory : AbstractScannerFactory<BoyterLc>() {
+        override fun create(config: ScannerConfiguration) = BoyterLc(config)
+    }
+
+    val CONFIGURATION_OPTIONS = listOf(
+            "--confidence", "0.95", // Cut-off value to only get most relevant matches.
+            "--format", "json"
+    )
+
+    private val scanner = BoyterLcCommand()
+
+    override val name = scanner.name
+    override val version = scanner.getVersion().originalValue!!
+    override val configuration = CONFIGURATION_OPTIONS.joinToString(" ")
+
+    override val resultFileExt = "json"
 
     override fun scanPath(scannerDetails: ScannerDetails, path: File, provenance: Provenance, resultsFile: File)
             : ScanResult {
         val startTime = Instant.now()
 
-        val process = ProcessCapture(
-                scannerPath.absolutePath,
+        val process = scanner.run(
                 *CONFIGURATION_OPTIONS.toTypedArray(),
                 "--output", resultsFile.absolutePath,
                 path.absolutePath
-        )
+        ).requireSuccess()
 
         val endTime = Instant.now()
 

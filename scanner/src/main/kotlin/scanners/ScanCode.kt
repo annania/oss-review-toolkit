@@ -63,6 +63,32 @@ import java.util.regex.Pattern
 
 import kotlin.math.absoluteValue
 
+class ScanCodeCommand : CommandLineTool2("ScanCode") {
+    override val executable = if (OS.isWindows) "scancode.bat" else "scancode"
+
+    override fun transformVersion(output: String) =
+            // "scancode --version" returns a string like "ScanCode version 2.0.1.post1.fb67a181", so simply remove
+            // the prefix.
+            output.substringAfter("ScanCode version ")
+
+    override val preferredVersion = Semver("2.9.2")
+
+    override val canBootstrap = true
+
+    override fun bootstrap(): File {
+        val gitRoot = File(".").searchUpwardsForSubdirectory(".git")
+        val scancodeDir = File(gitRoot, "scanner/src/funTest/assets/scanners/scancode-toolkit")
+        if (!scancodeDir.isDirectory) throw IOException("Directory '$scancodeDir' not found.")
+
+        val configureExe = if (OS.isWindows) "configure.bat" else "configure"
+        val configurePath = File(scancodeDir, configureExe)
+        ProcessCapture(configurePath.absolutePath, "--clean").requireSuccess()
+        ProcessCapture(configurePath.absolutePath).requireSuccess()
+
+        return scancodeDir
+    }
+}
+
 /**
  * A wrapper for [ScanCode](https://github.com/nexB/scancode-toolkit).
  *

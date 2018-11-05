@@ -36,14 +36,10 @@ import com.here.ort.model.Scope
 import com.here.ort.model.VcsInfo
 import com.here.ort.model.config.AnalyzerConfiguration
 import com.here.ort.model.config.RepositoryConfiguration
-import com.here.ort.utils.CommandLineTool
-import com.here.ort.utils.ProcessCapture
-import com.here.ort.utils.collectMessagesAsString
-import com.here.ort.utils.log
-import com.here.ort.utils.safeDeleteRecursively
-import com.here.ort.utils.showStackTrace
+import com.here.ort.utils.*
 
 import com.moandjiezana.toml.Toml
+import com.vdurmont.semver4j.Semver
 
 import java.io.File
 import java.io.IOException
@@ -59,7 +55,7 @@ val GO_LEGACY_MANIFESTS = mapOf(
  * The Dep package manager for Go, see https://golang.github.io/dep/.
  */
 class GoDep(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfiguration) :
-        PackageManager(analyzerConfig, repoConfig), CommandLineTool {
+        PackageManager(analyzerConfig, repoConfig) {
     class Factory : AbstractPackageManagerFactory<GoDep>() {
         override val globsForDefinitionFiles = listOf("Gopkg.toml", *GO_LEGACY_MANIFESTS.keys.toTypedArray())
 
@@ -67,7 +63,10 @@ class GoDep(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfigu
                 GoDep(analyzerConfig, repoConfig)
     }
 
-    override fun command(workingDir: File?) = "dep"
+    private val manager = object : CommandLineTool2("Bower") {
+        override val preferredVersion = ANY_VERSION
+        override val executable = "dep"
+    }
 
     override fun resolveDependencies(definitionFile: File): ProjectAnalyzerResult? {
         val projectDir = resolveProjectRoot(definitionFile)
@@ -168,7 +167,7 @@ class GoDep(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfigu
 
         log.debug { "Running 'dep init' to import legacy manifest file ${definitionFile.name}" }
 
-        run("init", workingDir = workingDir, environment = mapOf("GOPATH" to gopath.absolutePath))
+        manager.run("init", workingDir = workingDir, environment = mapOf("GOPATH" to gopath.absolutePath))
     }
 
     private fun setUpWorkspace(projectDir: File, vcs: VcsInfo, gopath: File): File {
@@ -198,7 +197,7 @@ class GoDep(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfigu
 
             log.debug { "Running 'dep ensure' to generate missing lockfile in $workingDir" }
 
-            run("ensure", workingDir = workingDir, environment = mapOf("GOPATH" to gopath.absolutePath))
+            manager.run("ensure", workingDir = workingDir, environment = mapOf("GOPATH" to gopath.absolutePath))
         }
 
         val entries = Toml().read(lockfile).toMap()["projects"]

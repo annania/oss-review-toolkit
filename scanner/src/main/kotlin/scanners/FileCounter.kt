@@ -46,14 +46,11 @@ class FileCounter(config: ScannerConfiguration) : LocalScanner(config) {
 
     data class FileCountResult(val fileCount: Int)
 
+    override val name = toString().toLowerCase()
+    override val version = "1.0.0"
+    override val configuration = ""
+
     override val resultFileExt = "json"
-    override val scannerVersion = "1.0"
-
-    override fun command(workingDir: File?) = ""
-
-    override fun getVersion(dir: File) = scannerVersion
-
-    override fun getConfiguration() = ""
 
     override fun scanPath(scannerDetails: ScannerDetails, path: File, provenance: Provenance, resultsFile: File)
             : ScanResult {

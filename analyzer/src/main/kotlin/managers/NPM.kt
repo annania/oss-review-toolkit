@@ -54,6 +54,7 @@ import com.here.ort.utils.textValueOrEmpty
 import com.here.ort.utils.toHexString
 
 import com.vdurmont.semver4j.Requirement
+import com.vdurmont.semver4j.Semver
 
 import java.io.File
 import java.io.IOException
@@ -70,7 +71,7 @@ import okhttp3.Request
  * The Node package manager for JavaScript, see https://www.npmjs.com/.
  */
 open class NPM(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfiguration) :
-        PackageManager(analyzerConfig, repoConfig), CommandLineTool {
+        PackageManager(analyzerConfig, repoConfig) {
     companion object {
         /**
          * Expand NPM shortcuts for URLs to hosting sites to full URLs so that they can be used in a regular way.
@@ -119,6 +120,12 @@ open class NPM(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConf
                 NPM(analyzerConfig, repoConfig)
     }
 
+    private val manager = object : CommandLineTool2("Bower") {
+        override val preferredVersion = ANY_VERSION
+        override val requiredVersion = Requirement.buildNPM("5.5.* - 6.4.*")
+        override val executable = if (OS.isWindows) "bower.cmd" else "bower"
+    }
+
     protected open fun hasLockFile(projectDir: File) = PackageJsonUtils.hasNpmLockFile(projectDir)
 
     override fun command(workingDir: File?) = if (OS.isWindows) "npm.cmd" else "npm"
@@ -131,7 +138,7 @@ open class NPM(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConf
     override fun prepareResolution(definitionFiles: List<File>) =
             // We do not actually depend on any features specific to an NPM version, but we still want to stick to a
             // fixed minor version to be sure to get consistent results.
-            checkVersion(ignoreActualVersion = analyzerConfig.ignoreToolVersions)
+            manager.checkVersion(ignoreActualVersion = analyzerConfig.ignoreToolVersions)
 
     override fun resolveDependencies(definitionFile: File): ProjectAnalyzerResult? {
         val workingDir = definitionFile.parentFile
@@ -502,7 +509,7 @@ open class NPM(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConf
         }
 
         // Install all NPM dependencies to enable NPM to list dependencies.
-        run(workingDir, "install", "--ignore-scripts")
+        manager.run(workingDir, "install", "--ignore-scripts")
 
         // TODO: capture warnings from npm output, e.g. "Unsupported platform" which happens for fsevents on all
         // platforms except for Mac.
