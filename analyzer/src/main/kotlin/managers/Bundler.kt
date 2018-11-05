@@ -42,7 +42,6 @@ import com.here.ort.model.config.RepositoryConfiguration
 import com.here.ort.model.jsonMapper
 import com.here.ort.model.yamlMapper
 import com.here.ort.utils.CommandLineTool
-import com.here.ort.utils.CommandLineTool2
 import com.here.ort.utils.OS
 import com.here.ort.utils.OkHttpClientHelper
 import com.here.ort.utils.collectMessagesAsString
@@ -51,7 +50,6 @@ import com.here.ort.utils.showStackTrace
 import com.here.ort.utils.stashDirectories
 import com.here.ort.utils.textValueOrEmpty
 
-import com.vdurmont.semver4j.Requirement
 import com.vdurmont.semver4j.Semver
 
 import java.io.File
@@ -74,7 +72,7 @@ class Bundler(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfi
                 Bundler(analyzerConfig, repoConfig)
     }
 
-    private val manager = object : CommandLineTool2("Bundler") {
+    private val manager = object : CommandLineTool("Bundler") {
         override val preferredVersion = Requirement.buildIvy("[1.16,1.18[") //Semver("1.16.+", Semver.SemverType.IVY)
         override val executable = if (OS.isWindows) "bundle.bat" else "bundle"
         override fun transformVersion(output: String) = output.substringAfter("Bundler version ")

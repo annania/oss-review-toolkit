@@ -54,7 +54,6 @@ import com.here.ort.utils.textValueOrEmpty
 import com.here.ort.utils.toHexString
 
 import com.vdurmont.semver4j.Requirement
-import com.vdurmont.semver4j.Semver
 
 import java.io.File
 import java.io.IOException
@@ -120,7 +119,7 @@ open class NPM(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConf
                 NPM(analyzerConfig, repoConfig)
     }
 
-    private val manager = object : CommandLineTool2("Bower") {
+    private val manager = object : CommandLineTool("Bower") {
         override val preferredVersion = ANY_VERSION
         override val requiredVersion = Requirement.buildNPM("5.5.* - 6.4.*")
         override val executable = if (OS.isWindows) "bower.cmd" else "bower"

@@ -34,7 +34,7 @@ import com.here.ort.model.jsonMapper
 import com.here.ort.scanner.LocalScanner
 import com.here.ort.scanner.ScanException
 import com.here.ort.scanner.AbstractScannerFactory
-import com.here.ort.utils.CommandLineTool2
+import com.here.ort.utils.CommandLineTool
 import com.here.ort.utils.OS
 import com.here.ort.utils.ProcessCapture
 import com.here.ort.utils.getPathFromEnvironment
@@ -46,7 +46,7 @@ import java.io.File
 import java.io.IOException
 import java.time.Instant
 
-class LicenseeCommand : CommandLineTool2("Licensee") {
+class LicenseeCommand : CommandLineTool("Licensee") {
     override val executable = if (OS.isWindows) "licensee.bat" else "licensee"
     override val versionArguments = "version"
     override val preferredVersion = Semver("9.10.1")

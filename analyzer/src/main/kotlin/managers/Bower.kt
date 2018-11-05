@@ -38,7 +38,6 @@ import com.here.ort.model.config.AnalyzerConfiguration
 import com.here.ort.model.config.RepositoryConfiguration
 import com.here.ort.model.jsonMapper
 import com.here.ort.utils.CommandLineTool
-import com.here.ort.utils.CommandLineTool2
 import com.here.ort.utils.OS
 import com.here.ort.utils.fieldNamesOrEmpty
 import com.here.ort.utils.fieldsOrEmpty
@@ -46,7 +45,6 @@ import com.here.ort.utils.log
 import com.here.ort.utils.stashDirectories
 import com.here.ort.utils.textValueOrEmpty
 
-import com.vdurmont.semver4j.Requirement
 import com.vdurmont.semver4j.Semver
 
 import java.io.File
@@ -207,7 +205,7 @@ class Bower(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfigu
                 Bower(analyzerConfig, repoConfig)
     }
 
-    private val manager = object : CommandLineTool2("Bower") {
+    private val manager = object : CommandLineTool("Bower") {
         override val preferredVersion = Semver("1.8.4")
         override val executable = if (OS.isWindows) "bower.cmd" else "bower"
     }

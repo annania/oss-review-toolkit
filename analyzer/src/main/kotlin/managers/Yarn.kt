@@ -23,7 +23,7 @@ import com.here.ort.analyzer.AbstractPackageManagerFactory
 import com.here.ort.analyzer.PackageJsonUtils
 import com.here.ort.model.config.AnalyzerConfiguration
 import com.here.ort.model.config.RepositoryConfiguration
-import com.here.ort.utils.CommandLineTool2
+import com.here.ort.utils.CommandLineTool
 import com.here.ort.utils.OS
 
 import com.vdurmont.semver4j.Requirement
@@ -42,7 +42,7 @@ class Yarn(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfigur
                 Yarn(analyzerConfig, repoConfig)
     }
 
-    private val manager = object : CommandLineTool2("Yarn") {
+    private val manager = object : CommandLineTool("Yarn") {
         override val preferredVersion = ANY_VERSION
         override val requiredVersion = Requirement.buildNPM("1.3.* - 1.12.*")
         override val executable = if (OS.isWindows) "yarn.cmd" else "yarn"

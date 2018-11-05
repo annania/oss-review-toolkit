@@ -39,7 +39,6 @@ import com.here.ort.model.config.RepositoryConfiguration
 import com.here.ort.utils.*
 
 import com.moandjiezana.toml.Toml
-import com.vdurmont.semver4j.Semver
 
 import java.io.File
 import java.io.IOException
@@ -63,7 +62,7 @@ class GoDep(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryConfigu
                 GoDep(analyzerConfig, repoConfig)
     }
 
-    private val manager = object : CommandLineTool2("Bower") {
+    private val manager = object : CommandLineTool("Bower") {
         override val preferredVersion = ANY_VERSION
         override val executable = "dep"
     }

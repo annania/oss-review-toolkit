@@ -63,7 +63,7 @@ import java.util.regex.Pattern
 
 import kotlin.math.absoluteValue
 
-class ScanCodeCommand : CommandLineTool2("ScanCode") {
+class ScanCodeCommand : CommandLineTool("ScanCode") {
     override val executable = if (OS.isWindows) "scancode.bat" else "scancode"
 
     override fun transformVersion(output: String) =

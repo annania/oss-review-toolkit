@@ -43,7 +43,6 @@ import com.here.ort.model.jsonMapper
 import com.here.ort.utils.*
 
 import com.vdurmont.semver4j.Requirement
-import com.vdurmont.semver4j.Semver
 
 import java.io.File
 import java.io.IOException
@@ -64,7 +63,7 @@ class PhpComposer(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryC
                 PhpComposer(analyzerConfig, repoConfig)
     }
 
-    private val composer = object : CommandLineTool2("Composer") {
+    private val composer = object : CommandLineTool("Composer") {
         override val preferredVersion = ANY_VERSION
         override val requiredVersion = Requirement.buildIvy("[1.5,)")
 
@@ -76,7 +75,7 @@ class PhpComposer(analyzerConfig: AnalyzerConfiguration, repoConfig: RepositoryC
                 output.split(" ").dropLast(2).last().removeSurrounding("(", ")")
     }
 
-    private val composerPhar = object : CommandLineTool2("ComposerPhar") {
+    private val composerPhar = object : CommandLineTool("ComposerPhar") {
         override val preferredVersion = ANY_VERSION
         override val executable = "php"
         override val mandatoryArguments = listOf(COMPOSER_PHAR_BINARY)
