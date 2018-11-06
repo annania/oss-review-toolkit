@@ -17,7 +17,7 @@
 
 FROM openjdk:jre-alpine
 
-ENV SCANCODE_VERSION=2.9.2
+ENV SCANCODE_VERSION=sys-platform-startswith
 
 # Add VCS tools (no specific versions required here).
 RUN apk add --no-cache \
@@ -50,8 +50,8 @@ RUN apk add --no-cache --repository http://nl.alpinelinux.org/alpine/edge/testin
     wget -q -O - https://get.haskellstack.org/ | sh
 
 # Add scanners (in versions known to work).
-RUN wget -q -O - https://github.com/nexB/scancode-toolkit/releases/download/v$SCANCODE_VERSION/scancode-toolkit-$SCANCODE_VERSION.tar.bz2 | \
-        tar -jxC /usr/local && \
+RUN wget -q -O - https://github.com/nexB/scancode-toolkit/archive/$SCANCODE_VERSION.tar.gz | \
+        tar -zxC /usr/local && \
         # Trigger configuration for end-users:
         /usr/local/scancode-toolkit-$SCANCODE_VERSION/scancode --version && \
         ln -s /usr/local/scancode-toolkit-$SCANCODE_VERSION/scancode /usr/local/bin/scancode
