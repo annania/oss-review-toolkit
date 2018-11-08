@@ -15,6 +15,16 @@
 # SPDX-License-Identifier: Apache-2.0
 # License-Filename: LICENSE
 
+FROM python:2.7-alpine
+
+RUN wget -q -O - https://github.com/nexB/scancode-toolkit/archive/develop.tar.gz | tar -zx && \
+    mv scancode-toolkit-develop scancode-toolkit && \
+    wget -q -O - https://github.com/nexB/scancode-thirdparty-src/archive/master.tar.gz | tar -zx && \
+    mv scancode-thirdparty-src-master scancode-thirdparty-src
+
+RUN (cd scancode-thirdparty-src && sh build.sh) && \
+    (cd scancode-toolkit && etc/release/release.sh)
+
 FROM openjdk:jre-alpine
 
 ENV SCANCODE_VERSION=sys-platform-startswith
