@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.PropertyNamingStrategy
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.module.SimpleModule
+import com.fasterxml.jackson.dataformat.cbor.CBORFactory
+import com.fasterxml.jackson.dataformat.protobuf.ProtobufMapper
 import com.fasterxml.jackson.dataformat.xml.XmlFactory
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
@@ -31,6 +33,10 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 
 import com.here.ort.model.config.AnalyzerConfiguration
 import com.here.ort.model.config.AnalyzerConfigurationDeserializer
+import de.undercouch.bson4jackson.BsonFactory
+import org.msgpack.jackson.dataformat.MessagePackFactory
+
+
 
 private val ortModelModule = SimpleModule("OrtModelModule").apply {
     addDeserializer(AnalyzerConfiguration::class.java, AnalyzerConfigurationDeserializer())
@@ -61,5 +67,9 @@ private val mapperConfig: ObjectMapper.() -> Unit = {
 val jsonMapper = ObjectMapper().apply(mapperConfig)
 val xmlMapper = ObjectMapper(XmlFactory()).apply(mapperConfig)
 val yamlMapper = ObjectMapper(YAMLFactory()).apply(mapperConfig)
+val bsonMapper = ObjectMapper(BsonFactory()).apply(mapperConfig)
+val cborMapper = ObjectMapper(CBORFactory()).apply(mapperConfig)
+val messagePackMapper = ObjectMapper(MessagePackFactory()).apply(mapperConfig)
+val protobufMapper = ProtobufMapper().apply(mapperConfig)
 
 val EMPTY_JSON_NODE: JsonNode = jsonMapper.readTree("{}")
