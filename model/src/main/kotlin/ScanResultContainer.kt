@@ -52,11 +52,13 @@ data class ScanResultContainer(
 /**
  * Return all detected licenses for the container's package [id], or an empty set if the container is null.
  */
-fun ScanResultContainer?.getAllDetectedLicenses(): SortedSet<String> =
-        sortedSetOf<String>().also { licenses ->
+fun ScanResultContainer?.getAllDetectedLicenses(): LicenseFindingsMap =
+        sortedMapOf<String, SortedSet<String>>().also {
             if (this != null) {
-                results.flatMapTo(licenses) {
-                    it.summary.licenses
+                results.forEach { result ->
+                    result.summary.licenseFindingsMap.forEach { (license, copyrights) ->
+                        it.getOrPut(license) { sortedSetOf() } += copyrights
+                    }
                 }
             }
         }
